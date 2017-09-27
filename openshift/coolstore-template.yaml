@@ -26,7 +26,7 @@ objects:
   metadata:
     name: web-ui
     labels:
-      application: web-ui
+      app: web-ui
   spec:
     tags:
     - name: latest
@@ -35,7 +35,7 @@ objects:
   metadata:
     name: web-ui
     labels:
-      application: web-ui
+      app: web-ui
   spec:
     output:
       to:
@@ -57,7 +57,7 @@ objects:
         from:
           kind: ImageStreamTag
           name: nodejs:4
-          namespace: openshift
+          namespace: ${IMAGE_STREAM_NAMESPACE}
       type: Source
     triggers:
     - imageChange: {}
@@ -68,11 +68,11 @@ objects:
   metadata:
     name: web-ui
     labels:
-      application: web-ui
+      app: web-ui
   spec:
     replicas: 1
     selector:
-      application: web-ui
+      app: web-ui
       deploymentconfig: web-ui
     strategy:
       resources: {}
@@ -80,7 +80,7 @@ objects:
     template:
       metadata:
         labels:
-          application: web-ui
+          app: web-ui
           deploymentconfig: web-ui
       spec:
         containers:
@@ -96,22 +96,22 @@ objects:
           - containerPort: 8080
             protocol: TCP
           livenessProbe:
-            failureThreshold: 5
+            failureThreshold: 10
             httpGet:
               path: /
               port: 8080
               scheme: HTTP
-            initialDelaySeconds: 120
-            periodSeconds: 5
+            initialDelaySeconds: 30
+            periodSeconds: 10
             successThreshold: 1
-            timeoutSeconds: 5
+            timeoutSeconds: 5            
           readinessProbe:
-            failureThreshold: 5
+            failureThreshold: 10
             httpGet:
               path: /
               port: 8080
               scheme: HTTP
-            initialDelaySeconds: 15
+            initialDelaySeconds: 30
             periodSeconds: 5
             successThreshold: 1
             timeoutSeconds: 1
@@ -136,7 +136,6 @@ objects:
   metadata:
     labels:
       app: web-ui
-      application: web-ui
     name: web-ui
   spec:
     ports:
@@ -158,25 +157,9 @@ objects:
 - apiVersion: v1
   kind: ImageStream
   metadata:
-    name: fis-java-openshift
-    labels:
-      application: coolstore-gw
-  spec:
-    dockerImageRepository: registry.access.redhat.com/jboss-fuse-6/fis-java-openshift
-    tags:
-    - name: "2.0"
-      annotations:
-        description: JBoss Fuse Integration Services 2.0 Java S2I images.
-        iconClass: icon-jboss
-        supports: jboss-fuse:6.3.0,java:8,xpaas:1.2
-        tags: builder,jboss-fuse,java,xpaas
-        version: "2.0"
-- apiVersion: v1
-  kind: ImageStream
-  metadata:
     name: coolstore-gw
     labels:
-      application: coolstore-gw
+      app: coolstore-gw
   spec: {}
   status:
     dockerImageRepository: ""
@@ -185,7 +168,7 @@ objects:
   metadata:
     name: coolstore-gw
     labels:
-      application: coolstore-gw
+      app: coolstore-gw
   spec:
     output:
       to:
@@ -208,6 +191,7 @@ objects:
         from:
           kind: ImageStreamTag
           name: fis-java-openshift:2.0
+          namespace: ${IMAGE_STREAM_NAMESPACE}
       type: Source
     triggers:
     - type: ConfigChange
@@ -218,7 +202,7 @@ objects:
   metadata:
     name: coolstore-gw
     labels:
-      application: coolstore-gw
+      app: coolstore-gw
   spec:
     replicas: 1
     selector:
@@ -229,7 +213,7 @@ objects:
     template:
       metadata:
         labels:
-          application: coolstore-gw
+          app: coolstore-gw
           deploymentconfig: coolstore-gw
         name: coolstore-gw
       spec:
@@ -244,7 +228,9 @@ objects:
             httpGet:
               path: /health
               port: 8081
-            initialDelaySeconds: 180
+            initialDelaySeconds: 30
+            failureThreshold: 10
+            periodSeconds: 10
           name: coolstore-gw
           ports:
           - containerPort: 8778
@@ -253,7 +239,9 @@ objects:
             httpGet:
               path: /health
               port: 8081
-            initialDelaySeconds: 10
+            initialDelaySeconds: 30
+            failureThreshold: 10
+            periodSeconds: 10
           resources: {}
     triggers:
     - imageChangeParams:
@@ -270,7 +258,6 @@ objects:
   metadata:
     labels:
       app: coolstore-gw
-      application: coolstore-gw
       hystrix.enabled: "true"
     name: coolstore-gw
   spec:
@@ -285,7 +272,7 @@ objects:
   metadata:
     name: coolstore-gw
     labels:
-      application: coolstore-gw
+      app: coolstore-gw
   spec:
     to:
       kind: Service
@@ -296,7 +283,7 @@ objects:
   metadata:
     name: inventory
     labels:
-      application: inventory
+      app: inventory
   spec:
     tags:
     - name: latest
@@ -305,7 +292,7 @@ objects:
   metadata:
     name: inventory
     labels:
-      application: inventory
+      app: inventory
   spec:
     output:
       to:
@@ -324,8 +311,8 @@ objects:
           value: ${MAVEN_MIRROR_URL}
         from:
           kind: ImageStreamTag
-          name: jboss-eap70-openshift:1.4
-          namespace: openshift
+          name: jboss-eap70-openshift:1.5
+          namespace: ${IMAGE_STREAM_NAMESPACE}
       type: Source
     triggers:
     - type: ConfigChange
@@ -336,7 +323,7 @@ objects:
   metadata:
     name: inventory
     labels:
-      application: inventory
+      app: inventory
   spec:
     replicas: 1
     selector:
@@ -347,7 +334,7 @@ objects:
     template:
       metadata:
         labels:
-          application: inventory
+          app: inventory
           deploymentconfig: inventory
         name: inventory
       spec:
@@ -385,13 +372,13 @@ objects:
                 - -c
                 - :shutdown(timeout=60)
           livenessProbe:
-            failureThreshold: 5
+            failureThreshold: 10
             httpGet:
               path: /
               port: 8080
               scheme: HTTP
-            initialDelaySeconds: 120
-            periodSeconds: 5
+            initialDelaySeconds: 60
+            periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 5
           name: inventory
@@ -406,13 +393,13 @@ objects:
             name: ping
             protocol: TCP
           readinessProbe:
-            failureThreshold: 5
+            failureThreshold: 10
             httpGet:
               path: /
               port: 8080
               scheme: HTTP
-            initialDelaySeconds: 15
-            periodSeconds: 5
+            initialDelaySeconds: 60
+            periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 1
           resources:
@@ -442,7 +429,6 @@ objects:
       service.alpha.openshift.io/dependencies: '[{"name":"inventory-postgresql","namespace":"","kind":"Service"}]'
     labels:
       app: inventory
-      application: inventory
     name: inventory
   spec:
     ports:
@@ -456,7 +442,7 @@ objects:
   metadata:
     name: inventory-postgresql
     labels:
-      application: inventory
+      app: inventory
   spec:
     replicas: 1
     selector:
@@ -466,7 +452,7 @@ objects:
     template:
       metadata:
         labels:
-          application: inventory
+          app: inventory
           deploymentconfig: inventory-postgresql
         name: inventory-postgresql
       spec:
@@ -513,7 +499,7 @@ objects:
         from:
           kind: ImageStreamTag
           name: postgresql:latest
-          namespace: openshift
+          namespace: ${IMAGE_STREAM_NAMESPACE}
       type: ImageChange
     - type: ConfigChange
 - apiVersion: v1
@@ -521,7 +507,6 @@ objects:
   metadata:
     labels:
       app: inventory
-      application: inventory
     name: inventory-postgresql
   spec:
     ports:
@@ -535,7 +520,7 @@ objects:
   metadata:
     name: catalog
     labels:
-      application: catalog
+      app: catalog
   spec:
     tags:
     - name: latest
@@ -561,8 +546,8 @@ objects:
           value: ${MAVEN_MIRROR_URL}
         from:
           kind: ImageStreamTag
-          name: jboss-webserver30-tomcat8-openshift:1.2
-          namespace: openshift
+          name: jboss-webserver31-tomcat8-openshift:1.0
+          namespace: ${IMAGE_STREAM_NAMESPACE}
       type: Source
     triggers:
     - type: ConfigChange
@@ -573,7 +558,7 @@ objects:
   metadata:
     name: catalog
     labels:
-      application: catalog
+      app: catalog
   spec:
     replicas: 1
     selector:
@@ -584,7 +569,7 @@ objects:
     template:
       metadata:
         labels:
-          application: catalog
+          app: catalog
           deploymentconfig: catalog
         name: catalog
       spec:
@@ -651,7 +636,6 @@ objects:
       service.alpha.openshift.io/dependencies: '[{"name":"catalog-mongodb","namespace":"","kind":"Service"}]'
     labels:
       app: catalog
-      application: catalog
     name: catalog
   spec:
     ports:
@@ -665,7 +649,6 @@ objects:
   metadata:
     labels:
       app: catalog
-      application: catalog
     name: catalog-mongodb
   spec:
     ports:
@@ -681,7 +664,7 @@ objects:
   kind: DeploymentConfig
   metadata:
     labels:
-      application: catalog
+      app: catalog
     name: catalog-mongodb
   spec:
     replicas: 1
@@ -695,7 +678,7 @@ objects:
     template:
       metadata:
         labels:
-          application: catalog
+          app: catalog
           deploymentconfig: catalog-mongodb
       spec:
         containers:
@@ -715,7 +698,7 @@ objects:
           image: mongodb
           imagePullPolicy: IfNotPresent
           livenessProbe:
-            failureThreshold: 3
+            failureThreshold: 10
             initialDelaySeconds: 30
             periodSeconds: 10
             successThreshold: 1
@@ -734,7 +717,7 @@ objects:
               - -c
               - mongo 127.0.0.1:27017/$MONGODB_DATABASE -u $MONGODB_USER -p $MONGODB_PASSWORD
                 --eval="quit()"
-            failureThreshold: 3
+            failureThreshold: 10
             initialDelaySeconds: 3
             periodSeconds: 10
             successThreshold: 1
@@ -765,33 +748,287 @@ objects:
         from:
           kind: ImageStreamTag
           name: mongodb:3.2
-          namespace: openshift
+          namespace: ${IMAGE_STREAM_NAMESPACE}
       type: ImageChange
     - type: ConfigChange
-# Cart Service
+# Rating Service
 - apiVersion: v1
   kind: ImageStream
   metadata:
-    name: redhat-openjdk18-openshift
+    name: rating
+    labels:
+      app: rating
   spec:
-    dockerImageRepository: registry.access.redhat.com/redhat-openjdk-18/openjdk18-openshift
     tags:
-    - annotations:
-        description: Build and run Java applications using Maven and OpenJDK 8.
-        iconClass: icon-jboss
-        openshift.io/display-name: Red Hat OpenJDK 8
-        sampleContextDir: undertow-servlet
-        sampleRepo: https://github.com/jboss-openshift/openshift-quickstarts
-        supports: java:8,xpaas:1.0
-        tags: builder,java,xpaas,openjdk
-        version: "1.0"
-      name: "1.0"
+    - name: latest
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    name: rating
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: rating:latest
+    source:
+      contextDir: rating-service
+      git:
+        ref: ${GIT_REF}
+        uri: ${GIT_URI}
+      type: Git
+    strategy:
+      sourceStrategy:
+        env:
+        - name: MAVEN_MIRROR_URL
+          value: ${MAVEN_MIRROR_URL}
+        from:
+          kind: ImageStreamTag
+          name: redhat-openjdk18-openshift:1.1
+          namespace: ${IMAGE_STREAM_NAMESPACE}
+      type: Source
+    triggers:
+    - type: ConfigChange
+    - imageChange: {}
+      type: ImageChange
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: rating
+    labels:
+      app: rating
+  spec:
+    replicas: 1
+    selector:
+      deploymentconfig: rating
+    strategy:
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: rating
+          deploymentconfig: rating
+        name: rating
+      spec:
+        containers:
+        - env:
+          - name: KUBERNETES_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          image: rating
+          imagePullPolicy: Always
+          name: rating
+          ports:
+          - containerPort: 8778
+            name: jolokia
+            protocol: TCP
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          livenessProbe:
+            failureThreshold: 2
+            httpGet:
+              path: "/health/liveness"
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreashold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: "/health/readiness"
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreashold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 500Mi
+            requests:
+              memory: 200Mi
+        terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 75
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - rating
+        from:
+          kind: ImageStreamTag
+          name: rating:latest
+      type: ImageChange
+    - type: ConfigChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      service.alpha.openshift.io/dependencies: '[{"name":"rating-mongodb","namespace":"","kind":"Service"}]'
+    labels:
+      app: rating
+    name: rating
+  spec:
+    ports:
+    - port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      deploymentconfig: rating
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: rating
+    name: rating-mongodb
+  spec:
+    ports:
+    - name: mongo
+      port: 27017
+      protocol: TCP
+      targetPort: 27017
+    selector:
+      deploymentconfig: rating-mongodb
+    sessionAffinity: None
+    type: ClusterIP
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: rating
+    name: rating-mongodb
+  spec:
+    replicas: 1
+    selector:
+      deploymentconfig: rating-mongodb
+    strategy:
+      recreateParams:
+        post:
+          execNewPod:
+            command:
+              - /bin/sh
+              - -i
+              - -c
+              - env && while ! mongo ${RATING_MONGODB_SERVICE_HOST}:27017/$MONGODB_DATABASE -u $MONGODB_USER -p $MONGODB_PASSWORD --eval="$MONGODB_INIT" > /dev/null 2>&1; do echo "waiting for mongo ..."; sleep 5; done
+            containerName: rating-mongodb
+            env:
+            - name: MONGODB_INIT
+              value: db.ratings.insert({"_id":"329299","itemId":"329299","rating":5.0,"count":1});
+                db.ratings.insert({"_id":"329199","itemId":"329199","rating":1.0,"count":12});
+                db.ratings.insert({"_id":"165613","itemId":"165613","rating":2.3,"count":31});
+                db.ratings.insert({"_id":"165614","itemId":"165614","rating":3.0,"count":51});
+                db.ratings.insert({"_id":"165954","itemId":"165954","rating":4.0,"count":66});
+                db.ratings.insert({"_id":"444434","itemId":"444434","rating":5.0,"count":76});
+                db.ratings.insert({"_id":"444435","itemId":"444435","rating":4.0,"count":83});
+                db.ratings.insert({"_id":"444436","itemId":"444436","rating":3.0,"count":123});
+          failurePolicy: ignore
+        timeoutSeconds: 600
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: rating
+          deploymentconfig: rating-mongodb
+      spec:
+        containers:
+        - env:
+          - name: KUBERNETES_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: MONGODB_USER
+            value: ${RATING_DB_USERNAME}
+          - name: MONGODB_PASSWORD
+            value: ${RATING_DB_PASSWORD}
+          - name: MONGODB_DATABASE
+            value: ratingdb
+          - name: MONGODB_ADMIN_PASSWORD
+            value: ${RATING_DB_PASSWORD}
+          image: mongodb
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 10
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 27017
+            timeoutSeconds: 1
+          name: rating-mongodb
+          ports:
+          - containerPort: 27017
+            protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -i
+              - -c
+              - mongo 127.0.0.1:27017/$MONGODB_DATABASE -u $MONGODB_USER -p $MONGODB_PASSWORD
+                --eval="quit()"
+            failureThreshold: 10
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 512Mi
+          securityContext:
+            capabilities: {}
+            privileged: false
+          terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /var/lib/mongodb/data
+            name: mongodb-data
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - emptyDir: {}
+          name: mongodb-data
+    test: false
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - rating-mongodb
+        from:
+          kind: ImageStreamTag
+          name: mongodb:3.2
+          namespace: ${IMAGE_STREAM_NAMESPACE}
+      type: ImageChange
+    - type: ConfigChange
+
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: rating-config
+    labels:
+      app: rating
+  data:
+    rating-config.yaml: |-
+      rating.http.port: 8080
+      connection_string: mongodb://rating-mongodb:27017
+      db_name: ratingdb
+      username: ${RATING_DB_USERNAME}
+      password: ${RATING_DB_PASSWORD}
+
+# Cart Service
 - apiVersion: v1
   kind: ImageStream
   metadata:
     name: cart
     labels:
-      application: cart
+      app: cart
   spec:
     tags:
     - name: latest
@@ -800,7 +1037,7 @@ objects:
   metadata:
     name: cart
     labels:
-      application: cart
+      app: cart
   spec:
     output:
       to:
@@ -819,7 +1056,8 @@ objects:
           value: ${MAVEN_MIRROR_URL}
         from:
           kind: ImageStreamTag
-          name: redhat-openjdk18-openshift:1.0
+          name: redhat-openjdk18-openshift:1.1
+          namespace: ${IMAGE_STREAM_NAMESPACE}
       type: Source
     triggers:
     - type: ConfigChange
@@ -830,7 +1068,7 @@ objects:
   metadata:
     name: cart
     labels:
-      application: cart
+      app: cart
   spec:
     replicas: 1
     selector:
@@ -841,7 +1079,7 @@ objects:
     template:
       metadata:
         labels:
-          application: cart
+          app: cart
           deploymentconfig: cart
         name: cart
       spec:
@@ -860,7 +1098,7 @@ objects:
           image: cart
           imagePullPolicy: Always
           livenessProbe:
-            failureThreshold: 5
+            failureThreshold: 10
             httpGet:
               path: /health
               port: 8080
@@ -915,7 +1153,6 @@ objects:
   metadata:
     labels:
       app: cart
-      application: cart
     name: cart
   spec:
     ports:
@@ -956,8 +1193,8 @@ objects:
           value: ${MAVEN_MIRROR_URL}
         from:
           kind: ImageStreamTag
-          name: jboss-decisionserver63-openshift:1.3
-          namespace: openshift
+          name: jboss-decisionserver64-openshift:1.0
+          namespace: ${IMAGE_STREAM_NAMESPACE}
       type: Source
     triggers:
     - type: ConfigChange
@@ -1076,12 +1313,251 @@ objects:
       targetPort: 8080
     selector:
       deploymentconfig: pricing
+
+# Review Service
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: review
+    labels:
+      app: review
+  spec:
+    tags:
+    - name: latest
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    name: review
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: review:latest
+    source:
+      contextDir: review-service
+      git:
+        ref: ${GIT_REF}
+        uri: ${GIT_URI}
+      type: Git
+    strategy:
+      sourceStrategy:
+        env:
+        - name: MAVEN_MIRROR_URL
+          value: ${MAVEN_MIRROR_URL}
+        from:
+          kind: ImageStreamTag
+          name: redhat-openjdk18-openshift:1.1
+          namespace: ${IMAGE_STREAM_NAMESPACE}
+      type: Source
+    triggers:
+    - type: ConfigChange
+    - imageChange: {}
+      type: ImageChange
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: review
+    labels:
+      app: review
+  spec:
+    replicas: 1
+    selector:
+      deploymentconfig: review
+    strategy:
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: review
+          deploymentconfig: review
+        name: review
+      spec:
+        containers:
+        - env:
+          - name: KUBERNETES_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: JAVA_OPTIONS
+            value: "-Dswarm.project.stage=production -Dswarm.project.stage.file=file:///app/config/review-config.yml"
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+          image: review
+          imagePullPolicy: Always
+          name: review
+          ports:
+          - containerPort: 8778
+            name: jolokia
+            protocol: TCP
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          livenessProbe:
+            failureThreshold: 2
+            httpGet:
+              path: "/health"
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreashold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: "/health"
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreashold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 500Mi
+            requests:
+              memory: 200Mi
+        volumes:
+          - configMap:
+              name: review-config
+              items:
+              - key: "review-config.yml"
+                path: "review-config.yml"
+            name: config
+        terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 75
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - review
+        from:
+          kind: ImageStreamTag
+          name: review:latest
+      type: ImageChange
+    - type: ConfigChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      service.alpha.openshift.io/dependencies: '[{"name":"review-postgresql","namespace":"","kind":"Service"}]'
+    labels:
+      app: review
+    name: review
+  spec:
+    ports:
+    - port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      deploymentconfig: review
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    name: review-postgresql
+    labels:
+      app: review
+  spec:
+    replicas: 1
+    selector:
+      deploymentconfig: review-postgresql
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          app: review
+          deploymentconfig: review-postgresql
+        name: review-postgresql
+      spec:
+        containers:
+        - env:
+          - name: POSTGRESQL_USER
+            value: ${REVIEW_DB_USERNAME}
+          - name: POSTGRESQL_PASSWORD
+            value: ${REVIEW_DB_PASSWORD}
+          - name: POSTGRESQL_DATABASE
+            value: review
+          image: postgresql
+          imagePullPolicy: Always
+          name: review-postgresql
+          volumeMounts:
+          - mountPath: /var/lib/pgsql/data
+            name: review-postgresql-data
+          ports:
+          - containerPort: 5432
+            protocol: TCP
+          livenessProbe:
+            initialDelaySeconds: 30
+            tcpSocket:
+              port: 5432
+            timeoutSeconds: 1
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -i
+              - -c
+              - psql -h 127.0.0.1 -U $POSTGRESQL_USER -q -d $POSTGRESQL_DATABASE -c 'SELECT 1'
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+        terminationGracePeriodSeconds: 60
+        volumes:
+        - name: review-postgresql-data
+          emptyDir: {}
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - review-postgresql
+        from:
+          kind: ImageStreamTag
+          name: postgresql:latest
+          namespace: ${IMAGE_STREAM_NAMESPACE}
+      type: ImageChange
+    - type: ConfigChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: review
+    name: review-postgresql
+  spec:
+    ports:
+    - port: 5432
+      targetPort: 5432
+    selector:
+      deploymentconfig: review-postgresql
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: review-config
+    labels:
+      app: review
+  data:
+    review-config.yml: |-
+      project:
+        stage: production
+      swarm:
+        datasources:
+          data-sources:
+            ReviewDS:
+              driver-name: postgresql
+              connection-url: jdbc:postgresql://review-postgresql:5432/review
+              user-name: ${REVIEW_DB_USERNAME}
+              password: ${REVIEW_DB_PASSWORD}
+
 # Netflix Turbine Server
 - apiVersion: v1
   kind: ImageStream
   metadata:
     labels:
-      application: turbine-server
+      app: turbine-server
     name: turbine-server
   spec:
     dockerImageRepository: docker.io/siamaksade/turbine-server # temporary till fabric8 images remove privillegd requirement
@@ -1094,19 +1570,19 @@ objects:
   kind: DeploymentConfig
   metadata:
     labels:
-      application: turbine-server
+      app: turbine-server
     name: turbine-server
   spec:
     replicas: 1
     selector:
-      application: turbine-server
+      app: turbine-server
       deploymentconfig: turbine-server
     strategy:
       type: Recreate
     template:
       metadata:
         labels:
-          application: turbine-server
+          app: turbine-server
           deploymentconfig: turbine-server
       spec:
         containers:
@@ -1122,7 +1598,7 @@ objects:
           resources: {}
           terminationMessagePath: /dev/termination-log
           readinessProbe:
-            failureThreshold: 5
+            failureThreshold: 10
             httpGet:
               path: /health
               port: 8080
@@ -1132,7 +1608,7 @@ objects:
             successThreshold: 1
             timeoutSeconds: 1
           livenessProbe:
-            failureThreshold: 5
+            failureThreshold: 10
             httpGet:
               path: /health
               port: 8080
@@ -1161,7 +1637,6 @@ objects:
   metadata:
     labels:
       app: turbine-server
-      application: turbine-server
     name: turbine-server
   spec:
     ports:
@@ -1170,13 +1645,13 @@ objects:
       protocol: TCP
       targetPort: 8080
     selector:
-      application: turbine-server
+      app: turbine-server
       deploymentconfig: turbine-server
 - apiVersion: v1
   kind: Route
   metadata:
     labels:
-      application: turbine-server
+      app: turbine-server
     name: turbine-server
   spec:
     port:
@@ -1190,7 +1665,7 @@ objects:
   kind: ImageStream
   metadata:
     labels:
-      application: hystrix-dashboard
+      app: hystrix-dashboard
     name: hystrix-dashboard
   spec:
     dockerImageRepository: docker.io/siamaksade/hystrix-dashboard # temporary till fabric8 images remove privillegd requirement
@@ -1203,19 +1678,19 @@ objects:
   kind: DeploymentConfig
   metadata:
     labels:
-      application: hystrix-dashboard
+      app: hystrix-dashboard
     name: hystrix-dashboard
   spec:
     replicas: 1
     selector:
-      application: hystrix-dashboard
+      app: hystrix-dashboard
       deploymentconfig: hystrix-dashboard
     strategy:
       type: Recreate
     template:
       metadata:
         labels:
-          application: hystrix-dashboard
+          app: hystrix-dashboard
           deploymentconfig: hystrix-dashboard
       spec:
         containers:
@@ -1231,7 +1706,7 @@ objects:
           resources: {}
           terminationMessagePath: /dev/termination-log
           readinessProbe:
-            failureThreshold: 5
+            failureThreshold: 10
             httpGet:
               path: /
               port: 8080
@@ -1241,7 +1716,7 @@ objects:
             successThreshold: 1
             timeoutSeconds: 1
           livenessProbe:
-            failureThreshold: 5
+            failureThreshold: 10
             httpGet:
               path: /
               port: 8080
@@ -1265,7 +1740,6 @@ objects:
   metadata:
     labels:
       app: hystrix-dashboard
-      application: hystrix-dashboard
     annotations:
       service.alpha.openshift.io/dependencies: '[{"name":"turbine-server","namespace":"","kind":"Service"}]'
     name: hystrix-dashboard
@@ -1276,13 +1750,13 @@ objects:
       protocol: TCP
       targetPort: 8080
     selector:
-      application: hystrix-dashboard
+      app: hystrix-dashboard
       deploymentconfig: hystrix-dashboard
 - apiVersion: v1
   kind: Route
   metadata:
     labels:
-      application: hystrix-dashboard
+      app: hystrix-dashboard
     name: hystrix-dashboard
   spec:
     port:
@@ -1348,3 +1822,32 @@ parameters:
   name: KIE_CONTAINER_DEPLOYMENT
   required: true
   value: CoolStoreRulesContainer=com.redhat:coolstore:2.0.0
+- description: Rating Service database user name
+  displayName: Rating Database username
+  from: user[a-zA-Z0-9]{3}
+  generate: expression
+  name: RATING_DB_USERNAME
+  required: true
+- description: Rating Service database user password
+  displayName: Rating Database password
+  from: '[a-zA-Z0-9]{8}'
+  generate: expression
+  name: RATING_DB_PASSWORD
+  required: true
+- description: Review Service database user name
+  displayName: Review Database username
+  from: user[a-zA-Z0-9]{3}
+  generate: expression
+  name: REVIEW_DB_USERNAME
+  required: true
+- description: Review Service database user password
+  displayName: Review Database password
+  from: '[a-zA-Z0-9]{8}'
+  generate: expression
+  name: REVIEW_DB_PASSWORD
+  required: true
+- description: Namespace in which the ImageStreams for Red Hat Middleware images are installed. These ImageStreams are normally installed in the openshift namespace. You should only need to modify this if you've installed the ImageStreams in a different namespace/project.
+  displayName: ImageStream Namespace
+  value: openshift
+  name: IMAGE_STREAM_NAMESPACE
+  required: true

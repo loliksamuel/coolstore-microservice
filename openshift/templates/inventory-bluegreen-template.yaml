@@ -16,7 +16,7 @@ objects:
   metadata:
     name: inventory-blue
     labels:
-      application: inventory
+      app: inventory
       variant: blue
   spec:
     replicas: 1
@@ -28,7 +28,7 @@ objects:
     template:
       metadata:
         labels:
-          application: inventory
+          app: inventory
           variant: blue
           deploymentconfig: inventory-blue
         name: inventory-blue
@@ -67,15 +67,16 @@ objects:
                 - -c
                 - :shutdown(timeout=60)
           livenessProbe:
-            failureThreshold: 5
+            failureThreshold: 10
             httpGet:
-              path: /
+              path: /api/availability/1
               port: 8080
               scheme: HTTP
-            initialDelaySeconds: 120
+            initialDelaySeconds: 60
             periodSeconds: 5
             successThreshold: 1
             timeoutSeconds: 5
+            periodSeconds: 10
           name: inventory
           ports:
           - containerPort: 8778
@@ -88,22 +89,22 @@ objects:
             name: ping
             protocol: TCP
           readinessProbe:
-            failureThreshold: 5
+            failureThreshold: 10
             httpGet:
-              path: /
+              path: /api/availability/1
               port: 8080
               scheme: HTTP
-            initialDelaySeconds: 15
-            periodSeconds: 5
+            initialDelaySeconds: 60
             successThreshold: 1
             timeoutSeconds: 1
+            periodSeconds: 10
           resources:
             limits:
               cpu: 2
-              memory: 1Gi
+              memory: 2Gi
             requests:
               cpu: 200m
-              memory: 512Mi
+              memory: 1Gi
           terminationMessagePath: /dev/termination-log
         dnsPolicy: ClusterFirst
         restartPolicy: Always
@@ -126,7 +127,6 @@ objects:
       service.alpha.openshift.io/dependencies: '[{"name":"inventory-postgresql","namespace":"","kind":"Service"}]'
     labels:
       app: inventory-live
-      application: inventory
       variant: blue
     name: inventory-blue
   spec:
@@ -142,7 +142,7 @@ objects:
   metadata:
     name: inventory-green
     labels:
-      application: inventory
+      app: inventory
       variant: green
   spec:
     replicas: 1
@@ -154,7 +154,7 @@ objects:
     template:
       metadata:
         labels:
-          application: inventory
+          app: inventory
           variant: green
           deploymentconfig: inventory-green
         name: inventory-green
@@ -193,13 +193,13 @@ objects:
                 - -c
                 - :shutdown(timeout=60)
           livenessProbe:
-            failureThreshold: 5
+            failureThreshold: 10
             httpGet:
-              path: /
+              path: /api/availability/1
               port: 8080
               scheme: HTTP
-            initialDelaySeconds: 120
-            periodSeconds: 5
+            initialDelaySeconds: 60
+            periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 5
           name: inventory
@@ -214,22 +214,22 @@ objects:
             name: ping
             protocol: TCP
           readinessProbe:
-            failureThreshold: 5
+            failureThreshold: 10
             httpGet:
-              path: /
+              path: /api/availability/1
               port: 8080
               scheme: HTTP
-            initialDelaySeconds: 15
+            initialDelaySeconds: 60
             periodSeconds: 5
             successThreshold: 1
             timeoutSeconds: 1
           resources:
             limits:
               cpu: 2
-              memory: 1Gi
+              memory: 2Gi
             requests:
               cpu: 200m
-              memory: 512Mi
+              memory: 1Gi
           terminationMessagePath: /dev/termination-log
         dnsPolicy: ClusterFirst
         restartPolicy: Always
@@ -252,7 +252,6 @@ objects:
       service.alpha.openshift.io/dependencies: '[{"name":"inventory-postgresql","namespace":"","kind":"Service"}]'
     labels:
       app: inventory-idle
-      application: inventory
       variant: green
     name: inventory-green
   spec:
@@ -266,7 +265,7 @@ objects:
   kind: Route
   metadata:
     labels:
-      application: inventory
+      app: inventory
       variant: green
     name: inventory
   spec:
@@ -284,7 +283,7 @@ objects:
   metadata:
     name: inventory-postgresql
     labels:
-      application: inventory
+      app: inventory
   spec:
     replicas: 1
     selector:
@@ -294,7 +293,7 @@ objects:
     template:
       metadata:
         labels:
-          application: inventory
+          app: inventory
           deploymentconfig: inventory-postgresql
         name: inventory-postgresql
       spec:
@@ -320,6 +319,8 @@ objects:
             tcpSocket:
               port: 5432
             timeoutSeconds: 1
+            failureThreshold: 10
+            periodSeconds: 10
           readinessProbe:
             exec:
               command:
@@ -329,6 +330,8 @@ objects:
               - psql -h 127.0.0.1 -U $POSTGRESQL_USER -q -d $POSTGRESQL_DATABASE -c 'SELECT 1'
             initialDelaySeconds: 5
             timeoutSeconds: 1
+            failureThreshold: 10
+            periodSeconds: 5
           resources:
             limits:
               cpu: 500m
@@ -356,7 +359,7 @@ objects:
   kind: Service
   metadata:
     labels:
-      application: inventory
+      app: inventory
     name: inventory-postgresql
   spec:
     ports:
@@ -368,7 +371,7 @@ objects:
   kind: PersistentVolumeClaim
   metadata:
     labels:
-      application: inventory
+      app: inventory
     name: inventory-postgresql-pv
   spec:
     accessModes:
