@@ -32,6 +32,7 @@ function usage() {
     echo "   --project-suffix [suffix] Suffix to be added to demo project names e.g. ci-SUFFIX. If empty, user will be used as suffix"
     echo "   --ephemeral               Deploy demo without persistent storage"
     echo "   --run-verify              Run verify after provisioning"
+    echo "   --keep-builds             Keep the coolstore build configs after builds are complete"
     echo
 }
 
@@ -42,6 +43,7 @@ ARG_EPHEMERAL=false
 ARG_COMMAND=
 ARG_RUN_VERIFY=false
 ARG_DEMO=
+ARG_DELETE_BUILDS=true
 
 while :; do
     case $1 in
@@ -121,6 +123,9 @@ while :; do
         --run-verify)
             ARG_RUN_VERIFY=true
             ;;
+        --keep-builds)
+            ARG_DELETE_BUILDS=false
+            ;;
         -h|--help)
             usage
             exit 0
@@ -188,12 +193,14 @@ case $ARG_DEMO in
         WORKSHOP_YAML=demo-msa.yml
         MAVEN_MIRROR_URL=$ARG_MAVEN_MIRROR_URL
         PRJ_COOLSTORE_PROD=("coolstore-$PRJ_SUFFIX" "CoolStore" "CoolStore Microservice Application")
+        PRJ_CI=("coolstore-$PRJ_SUFFIX" "CoolStore" "CoolStore Microservice Application")
         ;;
     msa-min)
         SCALE_DOWN_PROD=true
         WORKSHOP_YAML=demo-msa-min.yml
         MAVEN_MIRROR_URL=$ARG_MAVEN_MIRROR_URL
         PRJ_COOLSTORE_PROD=("coolstore-$PRJ_SUFFIX" "CoolStore" "CoolStore Microservice Application")
+        PRJ_CI=("coolstore-$PRJ_SUFFIX" "CoolStore" "CoolStore Microservice Application")
         ;;
     msa-cicd-eap)
         ENABLE_CI_CD=true
@@ -611,7 +618,9 @@ function promote_images() {
   echo_header "Promoting Images ..."
 
   # remove buildconfigs
-  oc delete bc --all -n ${PRJ_COOLSTORE_PROD[0]}
+  if [ "$ARG_DELETE_BUILDS" = true ] ; then
+    oc delete bc --all -n ${PRJ_COOLSTORE_PROD[0]}
+  fi
 
   for is in coolstore-gw web-ui cart catalog pricing rating review
   do
