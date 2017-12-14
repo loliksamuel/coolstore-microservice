@@ -246,6 +246,7 @@ function print_info() {
   echo "Demo name:           $ARG_DEMO"
   echo "OpenShift master:    $OPENSHIFT_MASTER"
   echo "Current user:        $LOGGEDIN_USER"
+  echo "Project owner:       $OPENSHIFT_USER"
   echo "Project suffix:      $PRJ_SUFFIX"
   echo "Ephemeral:           $ARG_EPHEMERAL"
   echo "GitHub repo:         $GITHUB_URI"
@@ -259,29 +260,6 @@ function print_info() {
     echo "Gogs user:           $GOGS_USER"
     echo "Gogs pwd:            $GOGS_PASSWORD"
   fi
-}
-
-# waits while the condition is true until it becomes false or it times out
-function wait_while_empty() {
-  local _NAME=$1
-  local _TIMEOUT=$(($2/5))
-  local _CONDITION=$3
-
-  echo "Waiting for $_NAME to be ready..."
-  local x=1
-  while [ -z "$(eval ${_CONDITION})" ]
-  do
-    echo "."
-    sleep 5
-    x=$(( $x + 1 ))
-    if [ $x -gt $_TIMEOUT ]
-    then
-      echo "$_NAME still not ready, I GIVE UP!"
-      exit 255
-    fi
-  done
-
-  echo "$_NAME is ready."
 }
 
 function remove_storage_claim() {
@@ -380,7 +358,7 @@ function deploy_nexus() {
 # Wait till Nexus is ready
 function wait_for_nexus_to_be_ready() {
   if [ -z "$ARG_MAVEN_MIRROR_URL" ] ; then # no maven mirror specified
-    wait_while_empty "Nexus" 600 "oc get ep nexus -o yaml -n ${PRJ_CI[0]} | grep '\- addresses:'"
+    oc rollout status dc nexus -n ${PRJ_CI[0]}
   fi
 }
 
@@ -403,8 +381,8 @@ function deploy_gogs() {
   sleep 5
 
   # wait for Gogs to be ready
-  wait_while_empty "Gogs PostgreSQL" 600 "oc get ep gogs-postgresql -o yaml -n ${PRJ_CI[0]} | grep '\- addresses:'"
-  wait_while_empty "Gogs" 600 "oc get ep gogs -o yaml -n ${PRJ_CI[0]} | grep '\- addresses:'"
+  oc rollout status dc gogs-postgresql -n ${PRJ_CI[0]}
+  oc rollout status dc gogs -n ${PRJ_CI[0]}
 
   sleep 10
 
@@ -474,7 +452,14 @@ EOM
 # Deploy Jenkins
 function deploy_jenkins() {
   echo_header "Deploying Jenkins..."
-  oc new-app jenkins-ephemeral -l app=jenkins -p MEMORY_LIMIT=1Gi -n ${PRJ_CI[0]}
+
+  # import jenkins image tags
+  if [ $LOGGEDIN_USER == 'system:admin' ] ; then
+    oc import-image jenkins:v3.7 --from="registry.access.redhat.com/openshift3/jenkins-2-rhel7" --confirm -n openshift 2>/dev/null
+    sleep 10
+  fi
+  
+  oc new-app jenkins-ephemeral -l app=jenkins -p MEMORY_LIMIT=1Gi --param=JENKINS_IMAGE_STREAM_TAG=jenkins:v3.7 -n ${PRJ_CI[0]}
   sleep 2
   oc set resources dc/jenkins --limits=cpu=1,memory=2Gi --requests=cpu=200m,memory=1Gi -n ${PRJ_CI[0]}
 }
@@ -489,14 +474,15 @@ function remove_coolstore_storage_if_ephemeral() {
   fi
 }
 
-function scale_down_deployments() {
-  local _PROJECT=$1
-	shift
-	while test ${#} -gt 0
-	do
-	  oc scale --replicas=0 dc $1 -n $_PROJECT
-	  shift
-	done
+function scale_down_deployments_by_labels() {
+  local _project=$1
+  local _selector=$2
+  local _deployments=$(oc get dc -l $_selector -o=custom-columns=:.metadata.name -n $_project)
+
+  for _dc in $_deployments; do
+      oc rollout cancel dc/$_dc -n $_project 2>/dev/null
+      oc scale --replicas=0 dc $_dc -n $_project
+  done
 }
 
 # Deploy Coolstore into Coolstore TEST project
@@ -504,8 +490,12 @@ function deploy_coolstore_test_env() {
   local _TEMPLATE="https://raw.githubusercontent.com/$GITHUB_ACCOUNT/coolstore-microservice/$GITHUB_REF/openshift/templates/coolstore-deployments-template.yaml"
 
   echo_header "Deploying CoolStore app into ${PRJ_COOLSTORE_TEST[0]} project..."
-  echo "Using deployment template $_TEMPLATE_DEPLOYMENT"
+  echo "Using deployment template $_TEMPLATE"
   oc process -f $_TEMPLATE --param=APP_VERSION=test --param=HOSTNAME_SUFFIX=${PRJ_COOLSTORE_TEST[0]}.$DOMAIN -n ${PRJ_COOLSTORE_TEST[0]} | oc create -f - -n ${PRJ_COOLSTORE_TEST[0]}
+  
+  sleep 2
+  scale_down_deployments_by_labels ${PRJ_COOLSTORE_TEST[0]} comp-required!=true,app!=inventory
+
   sleep 2
   remove_coolstore_storage_if_ephemeral ${PRJ_COOLSTORE_TEST[0]}
 }
@@ -547,7 +537,7 @@ function deploy_coolstore_prod_env() {
 
   # driven by the demo type
   if [ "$SCALE_DOWN_PROD" = true ] ; then
-    scale_down_deployments ${PRJ_COOLSTORE_PROD[0]} cart turbine-server hystrix-dashboard pricing inventory inventory-postgresql review review-postgresql rating rating-mongodb
+    scale_down_deployments_by_labels ${PRJ_COOLSTORE_PROD[0]} comp-required!=true
    fi  
 }
 
@@ -590,27 +580,7 @@ function build_images() {
   # build images
   for buildconfig in web-ui inventory cart catalog coolstore-gw pricing rating review
   do
-    oc start-build $buildconfig -n ${PRJ_COOLSTORE_PROD[0]}
-    wait_while_empty "$buildconfig build" 180 "oc get builds -n ${PRJ_COOLSTORE_PROD[0]} | grep $buildconfig | grep Running"
-    sleep 10
-  done
-}
-
-function wait_for_builds_to_complete() {
-  # wait for builds
-  for buildconfig in coolstore-gw web-ui inventory cart catalog pricing rating review
-  do
-    wait_while_empty "$buildconfig image" 600 "oc get builds -n ${PRJ_COOLSTORE_PROD[0]} | grep $buildconfig | grep -v Running"
-    sleep 10
-  done
-
-  # verify successful builds
-  for buildconfig in coolstore-gw web-ui inventory cart catalog pricing
-  do
-    if [ -z "$(oc get builds -n ${PRJ_COOLSTORE_PROD[0]} | grep $buildconfig | grep Complete)" ]; then
-      echo "ERROR: Build $buildconfig did not complete successfully"
-      exit 255
-    fi
+    oc start-build $buildconfig -n ${PRJ_COOLSTORE_PROD[0]} --wait
   done
 }
 
@@ -712,11 +682,12 @@ function verify_build_and_deployments() {
   echo "Verifying deployments..."
   # verify and retry deployments
   if [ "$ENABLE_CI_CD" = true ] ; then
+    verify_deployments_in_projects ${PRJ_COOLSTORE_PROD[0]} ${PRJ_CI[0]} ${PRJ_SERVICE_DEV[0]}
+
     if [ "$ENABLE_TEST_ENV" = true ] ; then
-      verify_deployments_in_projects ${PRJ_COOLSTORE_TEST[0]} ${PRJ_COOLSTORE_PROD[0]} ${PRJ_CI[0]} ${PRJ_SERVICE_DEV[0]}
-    else
-      verify_deployments_in_projects ${PRJ_COOLSTORE_PROD[0]} ${PRJ_CI[0]} ${PRJ_SERVICE_DEV[0]}
+      verify_deployments_in_projects ${PRJ_COOLSTORE_TEST[0]}
     fi
+
   else
     verify_deployments_in_projects ${PRJ_COOLSTORE_PROD[0]} ${PRJ_CI[0]}
   fi 
@@ -725,23 +696,24 @@ function verify_build_and_deployments() {
 function verify_deployments_in_projects() {
   for project in "$@"
   do
-    local _DC=
-    local _DEPLOYMENTS=$(oc get dc catalog-mongodb inventory-postgresql -n $project -o=custom-columns=:.metadata.name,:.status.availableReplicas 2>/dev/null;oc get dc -n $project -o=custom-columns=:.metadata.name,:.status.availableReplicas)
-    for dc in $_DEPLOYMENTS; do
-      # redeploy if deployment has failed or has taken too long
-      if [ $dc = 0 ] && [ -z "$(oc get pods -n $project | grep "$dc-[0-9]\+-deploy")" ] ; then
-        echo "WARNING: Deployment $project/$_DC: FAILED"
+    local deployments="$(oc get dc -l comp-type=database -n $project -o=custom-columns=:.metadata.name 2>/dev/null) $(oc get dc -l comp-type!=database -n $project -o=custom-columns=:.metadata.name 2>/dev/null)"
+    for dc in $deployments; do
+      dc_status=$(oc get dc $dc -n $project -o=custom-columns=:.spec.replicas,:.status.availableReplicas)
+      dc_replicas=$(echo $dc_status | sed "s/^\([0-9]\+\) \([0-9]\+\)$/\1/")
+      dc_available=$(echo $dc_status | sed "s/^\([0-9]\+\) \([0-9]\+\)$/\2/")
+
+      if [ "$dc_available" -lt "$dc_replicas" ] ; then
+        echo "WARNING: Deployment $project/$dc: FAILED"
         echo
-        echo "Starting a new deployment for $project/$_DC ..."
+        echo "Starting a new deployment for $project/$dc ..."
         echo
-        oc rollout cancel dc/$_DC -n $project >/dev/null
+        oc rollout cancel dc/$dc -n $project >/dev/null
         sleep 5
-        oc rollout latest dc/$_DC -n $project
-        oc rollout status dc/$_DC -n $project
-      elif [ $dc = 1 ] ; then
-        echo "Deployment $project/$_DC: OK"
+        oc rollout latest dc/$dc -n $project
+        oc rollout status dc/$dc -n $project
+      else
+        echo "Deployment $project/$dc: OK"
       fi
-      _DC=$dc
     done
   done
 }
@@ -897,10 +869,6 @@ case "$ARG_COMMAND" in
           fi
 
           deploy_service_dev_env
-
-          if ! images_exists; then
-            wait_for_builds_to_complete
-          fi
 
           promote_images
         fi

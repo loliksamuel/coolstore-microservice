@@ -26,6 +26,7 @@ objects:
     name: web-ui
     labels:
       app: web-ui
+      comp-required: "true"
   spec:
     replicas: 1
     selector:
@@ -101,6 +102,7 @@ objects:
   metadata:
     labels:
       app: web-ui
+      comp-required: "true"
     name: web-ui
   spec:
     ports:
@@ -116,6 +118,7 @@ objects:
     name: web-ui
     labels:
       app: web-ui
+      comp-required: "true"
   spec:
     host: web-ui-${HOSTNAME_SUFFIX}
     to:
@@ -128,6 +131,7 @@ objects:
     name: coolstore-gw
     labels:
       app: coolstore-gw
+      comp-required: "true"
   spec:
     replicas: 1
     selector:
@@ -204,6 +208,7 @@ objects:
     labels:
       app: coolstore-gw
       hystrix.enabled: "true"
+      comp-required: "true"
     name: coolstore-gw
   spec:
     ports:
@@ -218,6 +223,7 @@ objects:
     name: coolstore-gw
     labels:
       app: coolstore-gw
+      comp-required: "true"
   spec:
     host: gw-${HOSTNAME_SUFFIX}
     to:
@@ -230,6 +236,7 @@ objects:
     name: inventory
     labels:
       app: inventory
+      uses-database: "true"
   spec:
     replicas: 1
     selector:
@@ -363,6 +370,7 @@ objects:
     name: inventory-postgresql
     labels:
       app: inventory
+      comp-type: database
   spec:
     replicas: 1
     selector:
@@ -373,6 +381,7 @@ objects:
       metadata:
         labels:
           app: inventory
+          comp-type: database
           deploymentconfig: inventory-postgresql
         name: inventory-postgresql
       spec:
@@ -465,6 +474,8 @@ objects:
     name: catalog
     labels:
       app: catalog
+      comp-required: "true"
+      uses-database: "true"
   spec:
     replicas: 1
     selector:
@@ -554,6 +565,7 @@ objects:
       service.alpha.openshift.io/dependencies: '[{"name":"catalog-mongodb","namespace":"","kind":"Service"}]'
     labels:
       app: catalog
+      comp-required: "true"
     name: catalog
   spec:
     ports:
@@ -567,6 +579,7 @@ objects:
   metadata:
     labels:
       app: catalog
+      comp-required: "true"
     name: catalog
   spec:
     host: catalog-${HOSTNAME_SUFFIX}
@@ -579,6 +592,7 @@ objects:
   metadata:
     labels:
       app: catalog
+      comp-required: "true"
     name: catalog-mongodb
   spec:
     ports:
@@ -595,6 +609,8 @@ objects:
   metadata:
     labels:
       app: catalog
+      comp-type: database
+      comp-required: "true"
     name: catalog-mongodb
   spec:
     replicas: 1
@@ -609,6 +625,7 @@ objects:
       metadata:
         labels:
           app: catalog
+          comp-type: database
           deploymentconfig: catalog-mongodb
       spec:
         containers:
@@ -691,13 +708,14 @@ objects:
   metadata:
     labels:
       app: catalog
+      comp-required: "true"
     name: catalog-mongodb-pv
   spec:
     accessModes:
     - ReadWriteOnce
     resources:
       requests:
-        storage: 512Mi
+        storage: 1Gi
 # Rating Service
 - apiVersion: v1
   kind: DeploymentConfig
@@ -705,6 +723,7 @@ objects:
     name: rating
     labels:
       app: rating
+      uses-database: "true"
   spec:
     replicas: 1
     selector:
@@ -836,6 +855,7 @@ objects:
   metadata:
     labels:
       app: rating
+      comp-type: database
     name: rating-mongodb
   spec:
     replicas: 1
@@ -869,6 +889,7 @@ objects:
       metadata:
         labels:
           app: rating
+          comp-type: database
           deploymentconfig: rating-mongodb
       spec:
         containers:
@@ -957,7 +978,7 @@ objects:
     - ReadWriteOnce
     resources:
       requests:
-        storage: 512Mi
+        storage: 1Gi
 # Cart Service
 - apiVersion: v1
   kind: DeploymentConfig
@@ -991,6 +1012,10 @@ objects:
             value: ${KIE_SERVER_USER}
           - name: KIE_SERVER_PASSWORD
             value: ${KIE_SERVER_PASSWORD}
+          - name: DATAGRID_HOST
+            value: datagrid-hotrod
+          - name: DATAGRID_PORT
+            value: "11333"
           image: cart
           imagePullPolicy: Always
           livenessProbe:
@@ -1074,6 +1099,8 @@ objects:
   kind: DeploymentConfig
   metadata:
     name: pricing
+    labels:
+      app: pricing
   spec:
     replicas: 1
     selector:
@@ -1202,6 +1229,7 @@ objects:
     name: review
     labels:
       app: review
+      uses-database: "true"
   spec:
     replicas: 1
     selector:
@@ -1317,6 +1345,7 @@ objects:
     name: review-postgresql
     labels:
       app: review
+      comp-type: database
   spec:
     replicas: 1
     selector:
@@ -1327,6 +1356,7 @@ objects:
       metadata:
         labels:
           app: review
+          comp-type: database
           deploymentconfig: review-postgresql
         name: review-postgresql
       spec:
@@ -1419,7 +1449,120 @@ objects:
               connection-url: jdbc:postgresql://review-postgresql:5432/review
               user-name: ${REVIEW_DB_USERNAME}
               password: ${REVIEW_DB_PASSWORD}
-
+# JBoss Data Grid
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: datagrid
+      application: datagrid
+      comp: datagrid
+    name: datagrid
+  spec:
+    replicas: 1
+    selector:
+      deploymentConfig: datagrid
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          application: datagrid
+          deploymentConfig: datagrid
+        name: datagrid
+      spec:
+        containers:
+        - env:
+          - name: USERNAME
+          - name: PASSWORD
+          - name: OPENSHIFT_KUBE_PING_LABELS
+            value: application=datagrid
+          - name: OPENSHIFT_KUBE_PING_NAMESPACE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+          - name: INFINISPAN_CONNECTORS
+            value: hotrod
+          - name: CACHE_NAMES
+            value: cart
+          - name: HOTROD_SERVICE_NAME
+            value: datagrid-hotrod
+          - name: MEMCACHED_CACHE
+            value: default
+          - name: JGROUPS_CLUSTER_PASSWORD
+            value: BlonpvoQ
+          image: jboss-datagrid65-openshift
+          imagePullPolicy: Always
+          livenessProbe:
+            exec:
+              command:
+              - /bin/bash
+              - -c
+              - /opt/datagrid/bin/livenessProbe.sh
+            failureThreshold: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: datagrid
+          ports:
+          - containerPort: 8778
+            name: jolokia
+            protocol: TCP
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          - containerPort: 8888
+            name: ping
+            protocol: TCP
+          - containerPort: 11222
+            name: hotrod-internal
+            protocol: TCP
+          - containerPort: 11333
+            name: hotrod
+            protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+              - /bin/bash
+              - -c
+              - /opt/datagrid/bin/readinessProbe.sh
+            failureThreshold: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - datagrid
+        from:
+          kind: ImageStreamTag
+          name: jboss-datagrid65-openshift:1.4
+          namespace: openshift
+      type: ImageChange
+    - type: ConfigChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: datagrid
+      application: datagrid
+    name: datagrid-hotrod
+  spec:
+    ports:
+    - port: 11333
+      protocol: TCP
+      targetPort: 11333
+    selector:
+      deploymentConfig: datagrid
+    sessionAffinity: None
+    type: ClusterIP
 parameters:
 - description: CoolStore application image version to be deployed (imagestreams should exist)
   displayName: CoolStore image version
