@@ -99,3 +99,8 @@ Troubleshooting
   ```
 * If you attempt to deploy any of the services, and nothing happens, it may just be taking a while to download the Docker builder images. Visit the OpenShift web console and navigate to
 Browse->Events and look for errors, and re-run the 'oc delete ; oc create' commands to re-install the images (as outlined at the beginning.)
+
+* oc get bc
+* oc get templates -n openshift
+* oc describe template mysql-persistent -n openshift
+* oc edit template mysql-persistent -n openshift
