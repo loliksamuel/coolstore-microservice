@@ -31,6 +31,7 @@ Prerequisites
 In order to deploy the CoolStore microservices application, you need 
 * brew cask install minishift 
 * procees with https://docs.okd.io/latest/minishift/getting-started/quickstart.html
+* oc cluster up
 * login as admin
 * 4+ GB memory quota if deploying CoolStore
 * 16+ GB memory quota if deploying the [complete demo](openshift/scripts)
@@ -87,6 +88,8 @@ Read the [script docs](openshift/scripts) for further details and how to run the
 
 Troubleshooting
 ================
+* https://learn.openshift.com
+* 
 * u may want to add application server via catalog>java>WildFly>next>next
 * If you see an error like `An error occurred while starting the build.imageStream ...` it might be due to RHEL or JBoss imagestreams not being installed on your OpenShift environment. Contact the OpenShift admin to install these imagestreams with the following commands:
 
