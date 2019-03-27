@@ -27,7 +27,10 @@ There are several individual microservices and infrastructure components that ma
 
 Prerequisites
 ================
-In order to deploy the CoolStore microservices application, you need an OpenShift environment with
+In order to deploy the CoolStore microservices application, you need 
+* brew cask install minishift 
+* procees with https://docs.okd.io/latest/minishift/getting-started/quickstart.html
+* login as admin
 * 4+ GB memory quota if deploying CoolStore
 * 16+ GB memory quota if deploying the [complete demo](openshift/scripts)
 * RHEL and JBoss imagestreams installed (check _Troubleshooting_ section for details)
