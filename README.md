@@ -3,6 +3,7 @@ Red Hat Cool Store Microservice Demo [![Build Status](https://travis-ci.org/jbos
 This is an example demo showing a retail store consisting of several microservices based on [Red Hat OpenShift Application Runtimes](https://www.redhat.com/en/resources/openshift-application-runtimes-datasheet) (Spring Boot, WildFly Swarm, Vert.x, JBoss EAP and Node.js) deployed to [OpenShift](https://access.redhat.com/documentation/en/openshift-container-platform).
 
 It demonstrates how to wire up small microservices into a larger application using microservice architectural principals.
+apache camel project help you add routing to apigatway using activemq https://camel.apache.org/what-is-camel.html
 
 Development Branch
 ------------------
@@ -86,6 +87,7 @@ Read the [script docs](openshift/scripts) for further details and how to run the
 
 Troubleshooting
 ================
+* u may want to add application server via catalog>java>WildFly>next>next
 * If you see an error like `An error occurred while starting the build.imageStream ...` it might be due to RHEL or JBoss imagestreams not being installed on your OpenShift environment. Contact the OpenShift admin to install these imagestreams with the following commands:
 
   ```
